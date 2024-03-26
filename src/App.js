@@ -32,14 +32,28 @@ async function fetchCover(url) {
 export function App() {
   const [files, setFiles] = useState();
 
+  const PSPDFKit = useRef(null);
+
+  useEffect(() =>{
+    if (PSPDFKit.current)
+      return;
+
+    const f = async() =>{
+      PSPDFKit.current = await import("pspdfkit");
+    }
+    f();
+  }, [])
+
+
+  const [isLoading, setIsLoading] = useState(false);
   const handleChange = async (input_files) => {
-    let PSPDFKit = await import("pspdfkit");
+    setIsLoading(true);
     let _files = [];
     for(let i = 0; i < input_files.length; i++){
       let file = input_files[i];
       if (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'){
         let array_buffer = await file.arrayBuffer();
-        let buffer = await PSPDFKit.convertToPDF({
+        let buffer = await PSPDFKit.current.convertToPDF({
           document: array_buffer,
           baseUrl: `${window.location.protocol}//${window.location.host}/${process.env.PUBLIC_URL}`,
         });
@@ -51,6 +65,8 @@ export function App() {
       }
     }
     if (_files.length > 0) setFiles(_files);
+
+    setIsLoading(false);
   };
 
 
@@ -508,6 +524,9 @@ export function App() {
       </div>
 
       <div className=" w-full md:w-[20vw] h-full flex flex-col">
+        {
+          isLoading ? <p className=" font-semibold pl-2">Converting Files...</p> : <></>
+        }
         <div className=" w-full h-[80%]">
           <FileUploader
             multiple
