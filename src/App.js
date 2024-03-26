@@ -14,6 +14,21 @@ function hexToRgb(hex) {
     : null;
 }
 
+async function fetchCover(url) {
+  const loadImageAsArrayBuffer = async (imageUrl) => {
+    try {
+      const response = await fetch(imageUrl);
+      const buffer = await response.arrayBuffer();
+      return buffer;
+    } catch (error) {
+      return null
+    }
+  };
+
+  let buffer = await loadImageAsArrayBuffer(url);
+  return buffer;
+}
+
 export function App() {
   const [files, setFiles] = useState();
 
@@ -30,9 +45,9 @@ export function App() {
         });
         let blob = new Blob([buffer], { type: "application/pdf" });
         let new_file = new File([blob], file.name.split('.')[0] + '.pdf');
-        _files.push(new_file);
+        _files.push({file: new_file, need_cover: true});
       } else {
-        _files.push(file);
+        _files.push({file: file, need_cover: false});
       }
     }
     if (_files.length > 0) setFiles(_files);
@@ -56,7 +71,7 @@ export function App() {
       if (url) {
         const link = document.createElement("a");
         link.href = url;
-        link.setAttribute("download", `${files[i].name}`);
+        link.setAttribute("download", `${files[i].file.name}`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -80,7 +95,7 @@ export function App() {
     if (!files) return;
     if (!files[file_index]) return;
 
-    let array_buffer = await files[file_index].arrayBuffer();
+    let array_buffer = await files[file_index].file.arrayBuffer();
     pdfDoc.current = await PDFDocument.load(array_buffer);
     allPages.current = pdfDoc.current.getPages();
     pageSize.current = allPages.current[0].getSize();
@@ -151,6 +166,21 @@ export function App() {
             color: rgb(r, g, b),
           });
         }
+      }
+    }
+
+    let coverImage = null;
+    if (files[file_index].need_cover){
+      let array_buffer = await fetchCover('./white.png');
+      coverImage = await pdfDoc.current.embedPng(array_buffer);
+      for (let i = 0; i < allPages.current.length; i++) {
+        let current_page = allPages.current[i];
+        current_page.drawImage(coverImage, {
+          x: 0,
+          y: pageSize.current.height - 45,
+          width:  pageSize.current.width,
+          height: 90,
+        });
       }
     }
 
@@ -488,7 +518,7 @@ export function App() {
               <div className=" w-full h-full border border-zinc-800 rounded-sm border-dashed cursor-pointer hover:border-zinc-400 hover:text-zinc-400 flex flex-col justify-center items-center">
                 {files ? (
                   <div className=" w-full inline-flex flex-col text-center gap-2">
-                    <p>{files[0].name}</p>
+                    <p>{files[0].file.name}</p>
                     {files.length > 1 ? (
                       <p>{`and ${files.length - 1} more`}</p>
                     ) : (
